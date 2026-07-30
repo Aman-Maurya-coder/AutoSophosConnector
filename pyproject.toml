@@ -1,0 +1,16 @@
+[project]
+name = "autosophoswificonnector"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "cryptography>=46.0.5",
+    "keyring>=25.7.0",
+    "pillow>=12.1.1",
+    "pyinstaller>=6.19.0",
+    "pystray>=0.19.5",
+    "requests>=2.32.5",
+    "setuptools>=82.0.1",
+    "tk>=0.1.0",
+]
