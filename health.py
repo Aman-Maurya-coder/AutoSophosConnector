@@ -146,7 +146,17 @@ def probe_endpoint(
             allow_redirects=True,
         )
         latency_ms = (time.monotonic() - t0) * 1000
+        log_debug(
+            f"[{name}] "
+            f"status={resp.status_code} "
+            f"final_url={resp.url} "
+            f"history={[r.status_code for r in resp.history]}"
+        )
 
+        try:
+            log_debug(f"[{name}] body:\n{resp.text[:300]}")
+        except Exception:
+            pass
         if _is_captive_portal(resp):
             return HealthCheck(
                 endpoint=name,
@@ -177,6 +187,11 @@ def probe_endpoint(
     except Exception as exc:
         latency_ms = (time.monotonic() - t0) * 1000
         result = _classify_exception(exc)
+        log_debug(
+            f"[{name}] "
+            f"exception={type(exc).__name__} "
+            f"message={exc}"
+        )
         return HealthCheck(
             endpoint=name,
             url=url,

@@ -224,9 +224,22 @@ class StateManager:
                 continue
 
             aggregate = interpret_health(results)
-            primary_endpoint = results[0].endpoint if results else "Unknown"
-            primary_latency = results[0].latency_ms if results and results[0].latency_ms else 0.0
-            primary_exc = results[0].exc_type if results else None
+            # primary_endpoint = results[0].endpoint if results else "Unknown"
+            # primary_latency = results[0].latency_ms if results and results[0].latency_ms else 0.0
+            # primary_exc = results[0].exc_type if results else None
+            matching = next(
+                (r for r in results if r.result == aggregate),
+                results[0] if results else None,
+            )
+
+            if matching:
+                primary_endpoint = matching.endpoint
+                primary_latency = matching.latency_ms or 0.0
+                primary_exc = matching.exc_type
+            else:
+                primary_endpoint = "Unknown"
+                primary_latency = 0.0
+                primary_exc = None
 
             # ------------------------------------------------------------------
             # React to aggregate health result

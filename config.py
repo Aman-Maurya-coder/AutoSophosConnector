@@ -23,9 +23,9 @@ SSID_LOCK_ENABLED=True
 # ---------------------------------------------------------------------------
 HEALTH_ENDPOINTS = [
     # name used in logs, URL
+    ("Example",     "https://example.com"),
     ("Google204",   "https://clients3.google.com/generate_204"),
     ("Cloudflare",  "https://www.cloudflare.com/cdn-cgi/trace"),
-    ("Example",     "https://example.com"),
 ]
 
 # Logging mode identifiers

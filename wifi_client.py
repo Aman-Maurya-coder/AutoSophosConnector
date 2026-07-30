@@ -57,7 +57,7 @@ class WifiClient:
 
         target_gw = (config.COLLEGE_GATEWAY_IP or "").strip()
         if not target_gw:
-            return True
+            return False
 
         # Probe Sophos portal port 8090 with a raw TCP socket
         t0 = time.monotonic()
