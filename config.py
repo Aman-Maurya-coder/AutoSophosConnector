@@ -2,7 +2,7 @@ LOGIN_URL="http://192.168.100.1:8090/login.xml"
 
 LOGOUT_URL="http://192.168.100.1:8090/logout.xml"
 
-CHECK_URL="https://clients3.google.com/generate_204"
+CHECK_URL="http://clients3.google.com/generate_204"
 
 GATEWAY="http://192.168.100.1:8090"
 

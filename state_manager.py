@@ -108,6 +108,16 @@ class StateManager:
 
         try:
 
+            # Fix: stop any running monitor thread before attempting a new login.
+            # This prevents the old thread from racing and overriding CONNECTED
+            # with a stale failing check.
+            self.running = False
+
+            if self.monitor_thread and self.monitor_thread.is_alive():
+
+                self.monitor_thread.join(timeout=5)
+
+
             self.set_state("CONNECTING")
 
             if not self.client.is_college_wifi_connected():
@@ -124,6 +134,10 @@ class StateManager:
             if self.client.login():
 
                 self.set_state("CONNECTED")
+
+                # Fix: grace period — give the internet 5 s to come up before
+                # the monitor fires its first connectivity check.
+                time.sleep(5)
 
                 self.start_monitor()
 
@@ -180,6 +194,7 @@ class StateManager:
     def monitor(self):
 
         last_tick=time.monotonic()
+        fail_count = 0
 
         while self.running:
 
@@ -215,9 +230,19 @@ class StateManager:
 
                 # Happy path: ping succeeded and we didn't just wake from sleep.
                 # No need to verify gateway — stay CONNECTED and sleep until next tick.
+                fail_count = 0
                 time.sleep(config.CHECK_INTERVAL)
 
                 continue
+
+            if not ok and not woke_from_sleep:
+                fail_count += 1
+                if fail_count < 2:
+                    log(f"Connection check failed ({fail_count}/2). Ignoring transient failure.")
+                    time.sleep(config.CHECK_INTERVAL)
+                    continue
+
+            fail_count = 0
 
             # Ping failed or we woke from sleep — need to verify and retry.
             with self.lock:
