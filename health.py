@@ -90,9 +90,21 @@ def _is_captive_portal(response: requests.Response) -> bool:
     return False
 
 
+# Patterns in SSLError messages that indicate a captive-portal TLS MITM
+# (Sophos injects a self-signed certificate when the session expires).
+_SSL_MITM_PATTERNS = [
+    "self-signed certificate",
+    "self signed certificate",
+    "certificate verify failed",
+]
+
+
 def _classify_exception(exc: Exception) -> CheckResult:
     """Map a requests/socket exception to a specific CheckResult."""
     if isinstance(exc, requests.exceptions.SSLError):
+        ssl_msg = str(exc).lower()
+        if any(p in ssl_msg for p in _SSL_MITM_PATTERNS):
+            return CheckResult.CAPTIVE_PORTAL_DETECTED
         return CheckResult.SSL_ERROR
     if isinstance(exc, requests.exceptions.ConnectTimeout):
         return CheckResult.CONNECT_TIMEOUT
@@ -144,6 +156,7 @@ def probe_endpoint(
             url,
             timeout=timeout,
             allow_redirects=True,
+            headers={"Connection": "close"},
         )
         latency_ms = (time.monotonic() - t0) * 1000
         log_debug(

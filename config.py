@@ -59,6 +59,10 @@ CAPTIVE_PORTAL_PATTERNS = [
 # ---------------------------------------------------------------------------
 CHECK_INTERVAL=12
 
+# How many monitor ticks between periodic soft-auth backstop checks.
+# Runs soft_auth_check() even when health checks succeed, as defense-in-depth.
+SOFT_AUTH_BACKSTOP_INTERVAL = 5
+
 # Grace period after a successful login before the first health-check fires.
 POST_LOGIN_GRACE = 5
 

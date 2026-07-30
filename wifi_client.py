@@ -23,6 +23,9 @@ from logger import log, log_debug, log_diagnostic
 
 class WifiClient:
 
+    # Maximum age (seconds) of the health session before automatic recycling.
+    HEALTH_SESSION_MAX_AGE = 60
+
     def __init__(self):
         # Auth-only session: preserves cookies between login/logout calls.
         self.auth_session = requests.Session()
@@ -30,6 +33,7 @@ class WifiClient:
         # Health-check session: never used for auth, replaced after each login
         # to discard any stale keep-alive connections.
         self.health_session = requests.Session()
+        self._health_session_born = time.monotonic()
 
         # Cache credentials once at startup to avoid blocking keyring IPC calls.
         self._username, self._password = load_credentials()
@@ -42,6 +46,7 @@ class WifiClient:
         """Reset both auth and health sessions (e.g. after system resume)."""
         self.auth_session = requests.Session()
         self.health_session = requests.Session()
+        self._health_session_born = time.monotonic()
 
     def reset_health_session(self):
         """
@@ -50,6 +55,18 @@ class WifiClient:
         Called after a successful login so connectivity probes start with clean sockets.
         """
         self.health_session = requests.Session()
+        self._health_session_born = time.monotonic()
+
+    def recycle_health_session_if_stale(self):
+        """
+        Replace the health session if it exceeds HEALTH_SESSION_MAX_AGE seconds.
+
+        Defense-in-depth: prevents any single keep-alive connection from
+        persisting indefinitely, complementing the Connection: close header.
+        """
+        if time.monotonic() - self._health_session_born > self.HEALTH_SESSION_MAX_AGE:
+            self.health_session = requests.Session()
+            self._health_session_born = time.monotonic()
 
     def is_college_wifi_connected(self) -> bool:
         if not config.SSID_LOCK_ENABLED:

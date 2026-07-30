@@ -171,8 +171,10 @@ class StateManager:
           4. Evaluate aggregate result and manage counters / re-logins.
         """
         last_tick = time.monotonic()
+        tick_count = 0
 
         while self.running:
+            tick_count += 1
             now = time.monotonic()
             sleep_gap = now - last_tick
 
@@ -209,6 +211,9 @@ class StateManager:
             # ------------------------------------------------------------------
             # Layer 2 — Sequential Internet health check
             # ------------------------------------------------------------------
+            # Discard stale health session if it has exceeded its max age.
+            self.client.recycle_health_session_if_stale()
+
             # Transition to VERIFYING only if not currently CONNECTED to prevent UI flicker
             if self.state != "CONNECTED":
                 self.set_state("VERIFYING")
@@ -252,6 +257,35 @@ class StateManager:
                 self._consecutive_internet_failures = 0
                 self._consecutive_auth_failures = 0
                 self.set_state("CONNECTED")
+
+                # Periodic backstop: even when health checks succeed, verify
+                # the session via direct portal probe every N ticks.  This
+                # catches expiry masked by stale keep-alive sockets or
+                # allowlisted health-check domains.
+                if tick_count % config.SOFT_AUTH_BACKSTOP_INTERVAL == 0:
+                    if self.client.soft_auth_check():
+                        log(
+                            "Periodic backstop: captive portal detected "
+                            "despite SUCCESS health checks"
+                        )
+                        log_diagnostic(
+                            endpoint="BACKSTOP_SOFT_AUTH",
+                            latency_ms=0.0,
+                            result="PORTAL_DETECTED",
+                            retry_count=self._consecutive_auth_failures,
+                            gw_reachable=True,
+                            state=self.state,
+                            decision="TRIGGER_REAUTH",
+                            explanation="Periodic backstop soft_auth_check detected captive portal",
+                        )
+                        self._consecutive_auth_failures += 1
+                        self.set_state("AUTHENTICATION_EXPIRED")
+                        if self._consecutive_auth_failures >= config.MAX_AUTH_FAILURES:
+                            self._attempt_relogin()
+                            time.sleep(config.POST_LOGIN_GRACE)
+                        else:
+                            time.sleep(config.CHECK_INTERVAL)
+                        continue
 
                 log_diagnostic(
                     endpoint=primary_endpoint,
